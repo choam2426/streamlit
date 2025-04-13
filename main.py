@@ -1,104 +1,106 @@
-# --------------------------------------------
-# 4) Streamlit 배포
-# sunspots.csv 파일이 에디터 폴더의 data/아래에 있어야 합니다.
-# --------------------------------------------
+# --------------------------------------------------
+# [4] 시각화한 내용을 Steamlit에 배포하세요.
+# 위에서 생성한 sunspots_for_prophet.csv를 다운로드 받아, 루트/data 아래에 넣어주세요.
+# --------------------------------------------------
 import streamlit as st
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import gaussian_kde
+from prophet import Prophet
 
-@st.cache_data
-def load_data(file_path):
-    df = pd.read_csv(file_path)
-    if 'YEAR' in df.columns:
-        # 소수점 제거 후 정수로 변환
-        df['YEAR_INT'] = df['YEAR'].astype(int)
-        df['DATE'] = pd.to_datetime(df['YEAR_INT'].astype(str), format='%Y')
-        df.set_index('DATE', inplace=True)
-    return df
+# 페이지 설정
+st.set_page_config(page_title="🌞 Sunspot Forecast", layout="wide")
+st.title("🌞 Prophet Forecast with Preprocessed Sunspot Data")
 
-def plot_advanced_sunspot_visualizations(df, sunactivity_col='SUNACTIVITY'):
-    fig, axs = plt.subplots(2, 2, figsize=(15, 12))
-    fig.suptitle("Sunspots Data Advanced Visualization", fontsize=18)
+# ----------------------------------
+# [1] 데이터 불러오기
+# ----------------------------------
+# TODO: 'sunspots_for_prophet.csv' 파일을 불러오고, 'ds' 컬럼을 datetime 형식으로 변환하세요.
+df = pd.read_csv("data/sunspots_for_prophet.csv")
+df["ds"] = pd.to_datetime(df["ds"])
 
-    # (a) 전체 시계열 라인 차트
-    axs[0, 0].plot(df.index, df[sunactivity_col], color='blue', linewidth=1)
+st.subheader("📄 데이터 미리보기")
+st.dataframe(df.head())
 
-    axs[0, 0].set_title("Sunspot Activity Over Time")
-    axs[0, 0].set_xlabel("Year")
-    axs[0, 0].set_ylabel("Sunspot Count")
-    axs[0, 0].grid(True)
+# ----------------------------------
+# [2] Prophet 모델 정의 및 학습
+# ----------------------------------
+# TODO: Prophet 모델을 생성하고, 11년 주기 커스텀 seasonality를 추가한 후 학습하세요.
+model = Prophet()
+model.add_seasonality(name='sunspot_cycle', period=11*365.25, fourier_order=5)
+model.fit(df)
 
-    # (b) 분포: 히스토그램 + 커널 밀도
-    data = df[sunactivity_col].dropna().values
-    if len(data) > 0:  # 데이터가 있는지 확인
-        xs = np.linspace(data.min(), data.max(), 200)
-        density = gaussian_kde(data)
+# ----------------------------------
+# [3] 예측 수행
+# ----------------------------------
+# TODO: 30년간 연 단위 예측을 수행하고, 결과를 forecast에 저장하세요.
+future = model.make_future_dataframe(periods=365*30, freq='D')
+forecast = model.predict(future)
 
-        axs[0, 1].hist(data, bins=30, density=True, alpha=0.6, color='gray', label='Histogram')
-        axs[0, 1].plot(xs, density(xs), color='red', linewidth=2, label='Density')
-    axs[0, 1].set_title("Distribution of Sunspot Activity")
-    axs[0, 1].set_xlabel("Sunspot Count")
-    axs[0, 1].set_ylabel("Density")
-    axs[0, 1].legend()
-    axs[0, 1].grid(True)
+# ----------------------------------
+# [4] 기본 시각화
+# ----------------------------------
+st.subheader("📈 Prophet Forecast Plot")
+# TODO: model.plot()을 사용하여 예측 결과를 시각화하세요.
+fig1 = model.plot(forecast)
+st.pyplot(fig1)
 
-    # (c) 상자 그림: 1900년~2000년
-    try:
-        df_20th = df.loc["1900":"2000"]
-        if not df_20th.empty:
-            axs[1, 0].boxplot(df_20th[sunactivity_col], vert=False)
-    except:
-        # 해당 기간 데이터가 없을 경우 예외 처리
-        pass
-    axs[1, 0].set_title("Boxplot of Sunspot Activity (1900-2000)")
-    axs[1, 0].set_xlabel("Sunspot Count")
 
-    # (d) 산점도 + 회귀선
-    years = df['YEAR'].values
-    sun_activity = df[sunactivity_col].values
 
-    # NaN 값 제거
-    mask = ~np.isnan(sun_activity)
-    years_clean = years[mask]
-    sun_activity_clean = sun_activity[mask]
+st.subheader("📊 Forecast Components")
+# TODO: model.plot_components()를 사용하여 구성요소를 시각화하세요.
+fig2 = model.plot_components(forecast)
+st.pyplot(fig2)
 
-    if len(years_clean) > 1:  # 회귀선을 그리기 위해 최소 2개 이상의 데이터 필요
-        axs[1, 1].scatter(years_clean, sun_activity_clean, s=10, alpha=0.5, label='Data Points')
-        coef = np.polyfit(years_clean, sun_activity_clean, 1)
-        trend = np.poly1d(coef)
-        axs[1, 1].plot(years_clean, trend(years_clean), color='red', linewidth=2, label='Trend Line')
-    axs[1, 1].set_title("Trend of Sunspot Activity")
-    axs[1, 1].set_xlabel("Year")
-    axs[1, 1].set_ylabel("Sunspot Count")
-    axs[1, 1].legend()
-    axs[1, 1].grid(True)
+# ----------------------------------
+# [5] 커스텀 시각화: 실제값 vs 예측값 + 신뢰구간
+# ----------------------------------
+st.subheader("📉 Custom Plot: Actual vs Predicted with Prediction Intervals")
 
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    return fig
+# TODO: 실제값, 예측값, 신뢰구간을 하나의 plot에 시각화하세요.
+fig3, ax = plt.subplots(figsize=(14, 6))
 
-# 메인 앱
-st.title('🌞 태양흑점 데이터 분석 대시보드 🌞')
-st.markdown("""
-    이 대시보드는 태양흑점 데이터를 다양한 시각화 방법으로 보여줍니다.
-    """)
+'''코드를 작성하시오'''
+# 힌트:
+fig3, ax = plt.subplots(figsize=(14, 6))
+ax.plot(df["ds"], df["y"], 'o-', color='blue', label='Actual')
+ax.plot(forecast["ds"], forecast["yhat"], 'r--', label='Predicted')
+ax.fill_between(forecast["ds"], forecast["yhat_lower"], forecast["yhat_upper"], 
+                color='pink', alpha=0.3, label='Prediction Interval')
 
-try:
-    # 데이터 로드
-    df = load_data('data/sunspots.csv')
+ax.set_title("Sunspots: Actual vs. Predicted with Prediction Intervals")
+ax.set_xlabel("Year")
+ax.set_ylabel("Sun Activity")
+ax.legend()
+ax.grid(True)
+st.pyplot(fig3)
 
-    # 필터링된 데이터 - 전체 데이터 사용
-    filtered_df = df
+# ----------------------------------
+# [6] 잔차 분석 시각화
+# ----------------------------------
+st.subheader("📉 Residual Analysis (예측 오차 분석)")
 
-    # 시각화
-    if not filtered_df.empty:
-        st.subheader('태양흑점 데이터 종합 시각화')
-        fig = plot_advanced_sunspot_visualizations(filtered_df)
-        st.pyplot(fig)
-    else:
-        st.warning("데이터가 없습니다.")
+# TODO: df와 forecast를 'ds' 기준으로 병합하여 residual 컬럼을 생성하세요.
+merged = pd.merge(df, forecast, on="ds", how="inner")
+merged["residual"] = merged["y"] - merged["yhat"]
 
-except Exception as e:
-    st.error(f"오류가 발생했습니다: {e}")
-    st.info("데이터 파일의 구조를 확인해주세요. 'data/sunspots.csv' 파일이 존재하고 'YEAR'와 'SUNACTIVITY' 컬럼이 있어야 합니다.")
+# TODO: residual 시계열을 시각화하세요.
+fig4, ax2 = plt.subplots(figsize=(14, 4))
+
+'''코드를 작성하시오'''
+# 힌트:
+ax2.plot(merged["ds"], merged["residual"], color='purple', label='Residual')
+ax2.axhline(0, color='black', linestyle='--', linewidth=1)
+ax2.set_title("Residual Analysis (Actual - Predicted)")
+ax2.set_xlabel("Year")
+ax2.set_ylabel("Residual")
+ax2.legend()
+ax2.grid(True)
+
+st.pyplot(fig4)
+
+# ----------------------------------
+# [7] 잔차 통계 요약 출력
+# ----------------------------------
+st.subheader("📌 Residual Summary Statistics")
+# TODO: merged["residual"].describe()를 출력하세요.
+st.write(merged["residual"].describe())
