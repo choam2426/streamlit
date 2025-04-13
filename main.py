@@ -25,7 +25,11 @@ st.dataframe(df.head())
 # [2] Prophet 모델 정의 및 학습
 # ----------------------------------
 # TODO: Prophet 모델을 생성하고, 11년 주기 커스텀 seasonality를 추가한 후 학습하세요.
-model = Prophet()
+model = Prophet(
+    yearly_seasonality=False,  # 기본 연간 시즌얼리티 비활성화
+    changepoint_prior_scale=0.05,
+    seasonality_mode='additive'
+)
 model.add_seasonality(name='sunspot_cycle', period=11, fourier_order=5)
 model.fit(df)
 
@@ -33,7 +37,7 @@ model.fit(df)
 # [3] 예측 수행
 # ----------------------------------
 # TODO: 30년간 연 단위 예측을 수행하고, 결과를 forecast에 저장하세요.
-future = model.make_future_dataframe(periods=30, freq='D')
+future = model.make_future_dataframe(periods=30, freq='Y')
 forecast = model.predict(future)
 
 # ----------------------------------
