@@ -26,14 +26,14 @@ st.dataframe(df.head())
 # ----------------------------------
 # TODO: Prophet 모델을 생성하고, 11년 주기 커스텀 seasonality를 추가한 후 학습하세요.
 model = Prophet()
-model.add_seasonality(name='sunspot_cycle', period=11*365.25, fourier_order=5)
+model.add_seasonality(name='sunspot_cycle', period=11, fourier_order=5)
 model.fit(df)
 
 # ----------------------------------
 # [3] 예측 수행
 # ----------------------------------
 # TODO: 30년간 연 단위 예측을 수행하고, 결과를 forecast에 저장하세요.
-future = model.make_future_dataframe(periods=365*30, freq='D')
+future = model.make_future_dataframe(periods=30, freq='D')
 forecast = model.predict(future)
 
 # ----------------------------------
@@ -86,9 +86,8 @@ merged["residual"] = merged["y"] - merged["yhat"]
 # TODO: residual 시계열을 시각화하세요.
 fig4, ax2 = plt.subplots(figsize=(14, 4))
 
-'''코드를 작성하시오'''
 # 힌트:
-ax2.plot(merged["ds"], merged["residual"], color='purple', label='Residual')
+ax2.plot(merged["ds"], merged["residual"], "o-", color='purple', label='Residual')
 ax2.axhline(0, color='black', linestyle='--', linewidth=1)
 ax2.set_title("Residual Analysis (Actual - Predicted)")
 ax2.set_xlabel("Year")
